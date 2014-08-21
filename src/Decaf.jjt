@@ -1,0 +1,930 @@
+/**
+ * JavaCC template file created by SF JavaCC plugin 1.5.17+ wizard for JavaCC 1.5.0+
+ */
+options
+{
+  MULTI = true;
+  VISITOR = true;
+  DEBUG_TOKEN_MANAGER = true;
+  DEBUG_PARSER = true;
+  FORCE_LA_CHECK = true;
+  NODE_PREFIX = "Cute";
+  VISITOR_DATA_TYPE = "UglySymbolTable";
+}
+
+PARSER_BEGIN(Decaf)
+
+import java.io.*;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.IOException;
+
+public class Decaf {
+
+  static UglySymbolTable currentScope = new UglySymbolTable("Global");
+  
+  public static void main(String args []) throws ParseException, IOException {
+    Decaf parser = null;
+    FileInputStream fis = null;
+    if (args.length > 0) {
+      fis = new FileInputStream(args[0]);
+    } else {
+      BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+      String line = reader.readLine();
+      fis = new FileInputStream(line);
+    }
+    
+    parser = new Decaf(fis);
+
+    try {
+      SimpleNode tree = Decaf.Program();
+      tree.dump("> ");
+      UglySymbolTableVisitor symbolTableVisitor = new UglySymbolTableVisitor();
+      UglyTypeCheckVisitor typeCheckVisitor = new UglyTypeCheckVisitor();
+      UglyTACVisitor tacVisitor = new UglyTACVisitor();
+      tree.jjtAccept(symbolTableVisitor, currentScope);
+      tree.jjtAccept(typeCheckVisitor, currentScope);
+      if (UglySemanticError.hadErrors()) {
+        System.out.println("Semantic errors.");
+        return;
+      }
+      System.out.println("Yay!");
+      tree.jjtAccept(tacVisitor, currentScope);
+    } catch (Exception e) {
+        System.out.println("Oops. Exception.");
+        e.printStackTrace();
+        System.out.println(e.getMessage());
+        Decaf.ReInit(System.in);
+      } catch (Error e) {
+        System.out.println("Oops. Error.");
+        System.out.println("*** error message ***");
+        System.out.println(e.getMessage());
+        System.out.println("*** error message ***");
+        e.printStackTrace();
+      }
+  }
+}
+PARSER_END(Decaf)
+
+/*
+ * Whitespaces
+ */
+SKIP :
+{
+  " "
+| "\r"
+| "\t"
+| "\n"
+| "\f"
+}
+
+/*
+ * Line comments
+ */
+SKIP :
+{
+  <
+    "//"
+    (
+      [
+        "a"-"z", "A"-"Z", "0"-"9", "_",
+        ".", ",", ";", ":", "!", "?",
+        "(", ")", "-", "+", "*", "/", "=", "<", ">",
+        " ", "\"", "'"
+      ]
+    )*
+    ("\n" | "\r\n" | "\r")
+  >
+}
+
+/*
+ * Keywords
+ */
+TOKEN :
+{
+  < BOOLEAN: "boolean" >
+| < BREAK: "break" >
+| < CALLOUT: "callout" >
+| < CLASS: "class" >
+| < CONTINUE: "continue" >
+| < ELSE: "else" >
+| < FOR: "for" >
+| < IF: "if" >
+| < INT: "int" >
+| < PROGRAM: "Program" >
+| < RETURN: "return" >
+| < THIS: "this" >
+| < VOID: "void" >
+| < WHILE: "while" >
+}
+
+/*
+ * SYNTAX MARKERS
+ */
+TOKEN:
+{
+  < LPAREN: "(" >
+| < RPAREN: ")" >
+| < LBRACK: "[" >
+| < RBRACK: "]" >
+| < LBRACE: "{" >
+| < RBRACE: "}" >
+| < COMMA: "," >
+| < SEMICOLON: ";" >
+}
+
+/*
+ * Operators
+ */
+TOKEN:
+{
+  /*
+   * Unary plus and minus count for as TERM_OP.
+   */ 
+  < NOT_OP: "!" >
+| < DISJUNCTION_OP: "||" >
+| < CONJUNCTION_OP: "&&" >
+| < EQUALITY_OP: "==" | "!=" >
+| < RELATION_OP: "<" | ">" | "<=" | ">=" >
+| < FACTOR_OP: "*" | "/" | "%" >
+| < TERM_OP: "+" | "-" >
+}
+
+/*
+ * Assignment
+ */
+TOKEN:
+{
+  < ASSIGN: "=" >
+  | < ASSIGN_SC: "=" | "+=" | "-=" >
+}
+
+/*
+ * Literals
+ */
+TOKEN:
+{
+ < HEX_LITERAL: "0x" (<HEX_DIGIT>)+ >
+| < DECIMAL_LITERAL: (["0"-"9"])+ >
+| <#CHAR: (
+      ["a"-"z", "A"-"Z", "_", "0"-"9"]
+    | "\\t" | "\\n"
+    | "\\\\" | "\\\"" | "\\'"
+    | [
+       "+", "-", "/", "*", "%",
+       "!",  "?", "@", "#", "$", "%", "^", "&", "(", ")",
+       "=", ":", ";", "~", " "
+       ]
+  ) >  
+| <#ALPHA_NUM: <ALPHA> | ["0"-"9"] >
+| <#ALPHA: ["a"-"z","A"-"Z","_"] >
+| <#HEX_DIGIT: ["0"-"9", "a"-"f", "A"-"F"] >
+| < BOOL_LITERAL: "true" | "false" >
+| < CHAR_LITERAL: "'" <CHAR> "'" >
+| < STRING_LITERAL: "\"" (<CHAR>)* "\"" >
+}
+
+/*
+ * Identifier
+ */
+TOKEN:
+{
+  < IDENTIFIER: <ALPHA> (<ALPHA_NUM>)* >
+}
+
+// ------------ PARSER ------------
+
+SimpleNode Program():
+{
+}
+{
+  <CLASS>
+  <PROGRAM>
+  <LBRACE>
+  (LOOKAHEAD(3) FieldDeclaration())*
+  (MethodDeclaration())*
+  <RBRACE>
+  <EOF>
+  {
+  return jjtThis;
+  }
+}
+
+UglyTriplet<String, Boolean, Integer> FieldDeclarationUnit():
+{
+  Token t;
+  int size = 0;
+  boolean b = false;
+  CuteIntLiteral intLiteral;
+  /*
+   * It could've better just to traverse children instead of keeping a friggin redundant list
+   * with a friggin' ugly triplet.
+   */
+}
+{
+  t = <IDENTIFIER> { jjtThis.line = t.beginLine; jjtThis.column = t.beginColumn; }
+  (
+    <LBRACK>
+    intLiteral = IntLiteral()
+    {
+      b = true;
+      size = (Integer)intLiteral.value;
+    }
+    <RBRACK>
+  )?
+  {
+    jjtThis.isArray = b;
+    jjtThis.name = t.image;
+    jjtThis.size = size;
+    return new UglyTriplet<String, Boolean, Integer>(t.image, new Boolean(b), new Integer(size));
+  }
+}
+
+void FieldDeclaration():
+{
+  UglySymbolType type;
+  UglyTriplet<String, Boolean, Integer> triplet;
+  /*
+   * It could've better just to traverse children instead of keeping a friggin redundant list.
+   */
+}
+{
+  type = Type()
+  {
+    jjtThis.type = type;
+  }
+  triplet = FieldDeclarationUnit()
+  {
+    jjtThis.infos.add(triplet);
+  }
+  (
+    <COMMA>
+     triplet = FieldDeclarationUnit()
+     {
+       jjtThis.infos.add(triplet);
+     }
+  )*
+   <SEMICOLON>
+}
+
+UglyPair<UglySymbolType, String > MethodDeclarationParameter():
+{
+  UglySymbolType type;
+  Token t;
+}
+{
+  type = Type()
+  t = <IDENTIFIER>
+  {
+    jjtThis.type = type;
+    jjtThis.name = t.image;
+    return new UglyPair<UglySymbolType, String>(type, t.image);
+  }
+}
+
+void MethodDeclaration():
+{
+  UglySymbolType type = UglySymbolType.VOID;
+  UglySymbolType.Method methodType;
+  UglyPair<UglySymbolType, String > param;
+  Token t;
+  CuteBlock block;
+}
+{
+  (type = Type() | <VOID>)
+  t = <IDENTIFIER>
+  {
+    jjtThis.name = t.image;
+    methodType = new UglySymbolType.Method(jjtThis.name, type);
+  }
+  <LPAREN>
+  (
+    param = MethodDeclarationParameter()
+    {
+      jjtThis.params.add(param);
+      methodType.params.add(param.v);
+    }
+    (
+      <COMMA>
+      param = MethodDeclarationParameter()
+      {
+        jjtThis.params.add(param);
+        methodType.params.add(param.v);
+      }
+    )*
+  )?
+  {
+    jjtThis.type = methodType;
+  }
+  <RPAREN>
+  block = Block()
+  {
+    block.shouldPushScope = false;
+  }
+}
+
+CuteBlock Block():
+{
+}
+{
+  <LBRACE>
+  (
+    VariableDeclaration()
+  )*
+  (
+    Statement()
+  )*
+  <RBRACE>
+  {
+    return jjtThis;
+  }
+}
+
+void VariableDeclaration():
+{
+  Token t;
+  UglySymbolType type;
+}
+{
+  jjtThis.type = Type()
+  t = <IDENTIFIER>
+  {
+    jjtThis.names.add(t.image);
+  }
+  (
+    <COMMA>
+    t = <IDENTIFIER>
+    {
+      jjtThis.names.add(t.image);
+    }
+  )*
+  <SEMICOLON>
+}
+
+UglySymbolType Type():
+{
+}
+{
+  (
+    <INT>
+  {
+    jjtThis.type = UglySymbolType.INTEGER;
+  }
+  | <BOOLEAN>
+  {
+    jjtThis.type = UglySymbolType.BOOLEAN;
+  }
+  )
+  {
+    return jjtThis.type;
+  }
+}
+
+SimpleNode IfStatement():
+{
+  Token t;
+  CuteBlock ifBlock;
+  CuteBlock elseBlock;
+}
+{
+  t = <IF> { jjtThis.line = t.beginLine; jjtThis.column = t.beginColumn; }
+  <LPAREN>
+  Expression()
+  <RPAREN>
+  ifBlock = Block()
+  {
+    ifBlock.name = "if-block";
+  }
+  (
+    t = <ELSE> { jjtThis.line = t.beginLine; jjtThis.column = t.beginColumn; }
+    elseBlock = Block()
+    {
+      elseBlock.name = "else-block";
+    }
+  )?
+  {
+    return jjtThis;
+  }
+}
+
+SimpleNode ForStatement():
+{
+  /*
+   * For-loop variables always evaluate to int.
+   * They *can* shadow variables in the enclosing scope.
+   */
+  CuteBlock block;
+  Token t;
+  int initialValue; // TODO these could be strings as to let the visitor complain ?
+  int finalValue;
+  // TODO: get the value of the expression
+}
+{
+  t = <FOR> { jjtThis.line = t.beginLine; jjtThis.column = t.beginColumn; }
+  t = <IDENTIFIER> { jjtThis.iName = t.image; }
+  <ASSIGN>
+  Expression()
+  <COMMA>
+  Expression()
+  block = Block()
+  {
+    block.name = "for-block";
+    block.shouldPushScope = false;
+    return jjtThis;
+  }
+}
+
+SimpleNode ReturnStatement():
+{
+  Token t;
+}
+{
+  t =<RETURN> (LOOKAHEAD(2) Expression())?
+  {
+    jjtThis.line = t.beginLine;
+    jjtThis.column = t.beginColumn;
+    return jjtThis;
+  }
+}
+
+SimpleNode BreakStatement():
+{
+  Token t;
+}
+{
+  t = <BREAK>
+  {
+    jjtThis.line = t.beginLine;
+    jjtThis.column = t.beginColumn;
+    return jjtThis;
+  }
+}
+
+SimpleNode ContinueStatement():
+{
+  Token t;
+}
+{
+  t = <CONTINUE>
+  {
+    jjtThis.line = t.beginLine;
+    jjtThis.column = t.beginColumn;
+    return jjtThis;
+  }
+}
+
+SimpleNode Statement():
+{
+  SimpleNode node;
+}
+{
+  (
+    (
+        LOOKAHEAD(3) node = Assignment()
+      | LOOKAHEAD(3) node = MethodCall()
+      | node = CalloutStatement()
+      | node = ReturnStatement()
+      | node = BreakStatement()
+      | node = ContinueStatement()
+    )
+    <SEMICOLON>
+    | node = IfStatement()
+    | node = ForStatement()
+    | node = Block()
+  )
+  {
+    jjtThis.line = node.line;
+    jjtThis.column = node.column;
+    return jjtThis;
+  }
+}
+
+CuteAssignment Assignment():
+{
+  Token t;
+}
+{
+  Location()
+  (
+    /* redundancy pffft */
+      t = <ASSIGN_SC> { jjtThis.isShortcut = true; }
+    | t = <ASSIGN>
+  )
+  Expression()
+  {
+    jjtThis.value = t.image;
+    jjtThis.line = t.beginLine;
+    jjtThis.column = t.beginColumn;
+    return jjtThis;
+  }
+}
+
+CuteLocation Location():
+{
+  Token t;
+}
+{
+  t = <IDENTIFIER>
+  {
+    jjtThis.name = t.image;
+    jjtThis.line = t.beginLine;
+    jjtThis.column = t.beginColumn;
+  }
+  (
+    <LBRACK>
+    Expression()
+    <RBRACK>
+    {
+      jjtThis.isArrayAccess = true;
+    }
+  )?
+  {
+    return jjtThis;
+  }
+}
+
+CuteMethodCall MethodCall():
+{
+  CuteMethodName methodName;
+  Token t;
+}
+{
+    methodName = MethodName()
+    {
+      jjtThis.name = methodName.name;
+      jjtThis.line = methodName.line;
+      jjtThis.column = methodName.column;
+    }
+    <LPAREN>
+    (
+      Expression()
+      (
+        <COMMA>
+        Expression()
+        )*
+    )?
+    <RPAREN>
+    {
+      return jjtThis;
+    }
+}
+
+CuteCalloutStatement CalloutStatement():
+{
+  String s;
+  Token t;
+}
+{
+  t = <CALLOUT>
+  {
+    jjtThis.line = t.beginLine;
+    jjtThis.column = t.beginColumn;
+  }
+  <LPAREN>
+  s = StringLiteral()
+  {
+    jjtThis.value= s;
+  }
+  (
+    <COMMA>
+    CalloutArgument()
+  )*
+  <RPAREN>
+  {
+    return jjtThis;
+  }
+}
+
+CuteMethodName MethodName():
+{
+	Token t;
+}
+{
+  t = <IDENTIFIER>
+  {
+    jjtThis.name = t.image;
+    jjtThis.line = t.beginLine;
+    jjtThis.column = t.beginColumn;
+    return jjtThis;
+  }
+}
+
+CuteExpression Expression():
+{
+  CuteExpression e;
+}
+{
+  e = DisjunctionExpression()
+  {
+    jjtThis.line = e.line;
+    jjtThis.column = e.column;
+    return jjtThis;
+  }
+}
+
+CuteDisjunctionExpression DisjunctionExpression():
+{
+  CuteExpression e;
+  Token t;
+}
+{
+  e = ConjunctionExpression()
+  (
+    t = <DISJUNCTION_OP>
+    e = ConjunctionExpression()
+    {
+      e.operator = t.image;
+    }
+  )*
+  {
+    jjtThis.line = e.line;
+    jjtThis.column = e.column;
+    return jjtThis;
+  }
+}
+
+CuteConjunctionExpression ConjunctionExpression():
+{
+  CuteExpression e;
+  Token t;
+}
+{
+  e = EqualityExpression()
+  (
+    t = <CONJUNCTION_OP> 
+    e = EqualityExpression()
+    {
+      e.operator = t.image;
+    }
+  )*
+  {
+    jjtThis.line = e.line;
+    jjtThis.column = e.column;
+    return jjtThis;
+  }
+}
+
+CuteEqualityExpression EqualityExpression():
+{
+  CuteExpression e;
+  Token t;
+}
+{
+  e = RelationExpression()
+  (
+    t = <EQUALITY_OP>
+    e = RelationExpression()
+    {
+      e.operator = t.image;
+    }
+  )?
+  {
+    jjtThis.line = e.line;
+    jjtThis.column = e.column;
+    return jjtThis;
+  }
+}
+
+CuteRelationExpression RelationExpression():
+{
+  CuteExpression e;
+  Token t;
+}
+{
+  e = TermExpression()
+  (
+    t = <RELATION_OP>
+    e = TermExpression()
+    {
+      e.operator = t.image;
+    }
+  )?
+  {
+    jjtThis.line = e.line;
+    jjtThis.column = e.column;
+    return jjtThis;
+  }
+}
+
+CuteTermExpression TermExpression():
+{
+ CuteExpression e;
+ Token t;
+}
+{
+  e = FactorExpression()
+  (
+    t = <TERM_OP>
+    e = FactorExpression()
+    {
+      e.operator = t.image;
+    }
+  )*
+  {
+    jjtThis.line = e.line;
+    jjtThis.column = e.column;
+    return jjtThis;
+  }
+}
+
+CuteFactorExpression FactorExpression():
+{
+  CuteExpression e;
+  Token t;
+}
+{
+  e = UnaryExpression()
+  (
+    t = <FACTOR_OP>
+    e = UnaryExpression()
+    {
+      e.operator = t.image;
+    }
+  )*
+  {
+    jjtThis.line = e.line;
+    jjtThis.column = e.column;
+    return jjtThis;
+  }
+}
+
+CuteUnaryExpression UnaryExpression():
+{
+  CuteExpression e;
+  Token t = null;
+}
+{
+  (
+      t = <NOT_OP> { jjtThis.isArithmetic = false; }
+    | t = <TERM_OP> { jjtThis.isArithmetic = true; }
+  )?
+  e = ExpressionUnit()
+  {
+    if (t == null) {
+      jjtThis.line = e.line;
+      jjtThis.column = e.column;
+    } else {
+      jjtThis.line = t.beginLine;
+      jjtThis.column = t.beginColumn;
+      e.operator = t.image;
+    }
+  }
+  {
+    return jjtThis;
+  }
+}
+
+CuteExpressionUnit ExpressionUnit():
+{
+  SimpleNode node;
+}
+{
+  (
+     LOOKAHEAD(3) node = MethodCall()
+    | node = CalloutStatement()
+    | node = Location()
+    | node = Literal()
+    | <LPAREN>
+      node = Expression()
+      <RPAREN>
+  )
+  {
+    jjtThis.line = node.line;
+    jjtThis.column = node.column;
+    return jjtThis;
+  }
+}
+
+void CalloutArgument():
+{
+  String s;
+}
+{
+  Expression() | s = StringLiteral() { jjtThis.value = s; }
+}
+
+CuteLiteral Literal():
+{
+  CuteLiteral literal = null;
+}
+{
+  (
+    LOOKAHEAD(2) literal = IntLiteral()
+    | literal = BooleanLiteral()
+    | literal = CharLiteral()
+  )
+  {
+    jjtThis.line = literal.line;
+    jjtThis.column = literal.column;
+    jjtThis.value = literal.value;
+    return literal;
+  }
+}
+
+CuteCharLiteral CharLiteral():
+{
+  Token t;
+  Character c = null;
+}
+{
+  t = <CHAR_LITERAL>
+  {
+    assert t.image.charAt(0) == '\'': t.image;
+    assert t.image.charAt(t.image.length() -1) == '\'' : t.image;
+    assert t.image.length() <= 4 : t.image;
+    if (t.image.length() == 3) {
+      c = t.image.charAt(1);
+    } else if (t.image.length() == 2) {
+      assert t.image.charAt(1) == '\\';
+      switch (t.image.charAt(2)) {
+        case 'n': c = '\n'; break;
+        case 't': c = '\t'; break;
+        case 'r': c = '\r'; break;
+        default: c = '\0';
+      }
+    }
+    // CAUTION
+    jjtThis.value = new Integer(c);
+    jjtThis.line = t.beginLine;
+    jjtThis.column = t.beginColumn;
+    return jjtThis;
+  }
+}
+
+CuteIntLiteral IntLiteral():
+{
+  Token signToken = null;
+  Token numberToken;
+  int isPositive = 1;
+}
+{
+  (
+    signToken = <TERM_OP>
+    {
+      isPositive = signToken.equals("-") ? -1 : +1;
+      jjtThis.line = signToken.beginLine;
+      jjtThis.column = signToken.beginColumn;
+    }
+  )?
+  (
+      numberToken = <DECIMAL_LITERAL>
+        {
+          jjtThis.base = 10;
+        }
+    | numberToken = <HEX_LITERAL>
+        {
+          jjtThis.base = 16; 
+        }
+  )
+  {
+    try {
+      int number = Integer.decode(numberToken.image);
+      number *= isPositive;
+      jjtThis.value = new Integer(number);
+    } catch (NumberFormatException e) {
+      System.err.print("Bad syntactic construction for int literal: ");
+      System.err.println(numberToken.image);
+      jjtThis.value = new Integer(0);
+    } finally {
+      if (signToken == null) {
+        jjtThis.line = numberToken.beginLine;
+        jjtThis.column = numberToken.beginColumn;
+      }
+      return jjtThis;
+    }
+  }   
+}
+
+CuteBooleanLiteral BooleanLiteral():
+{
+  Token t;
+}
+{
+  t = <BOOL_LITERAL>
+  {
+    jjtThis.value = Boolean.valueOf(t.image);
+    jjtThis.line = t.beginLine;
+    jjtThis.column = t.beginColumn;
+    return jjtThis;
+  }
+}
+
+String StringLiteral():
+{
+  Token t;
+}
+{
+  t = <STRING_LITERAL>
+  {
+    try {
+      StringBuilder builder = new StringBuilder(t.image);
+      builder.delete(0, 1);
+      builder.delete(builder.length() - 1, builder.length());
+      String string = builder.toString();
+      jjtThis.value = string;
+      return string;
+    } catch (Exception e) {
+      return "";
+    }
+  }
+}

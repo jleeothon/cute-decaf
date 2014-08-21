@@ -1,0 +1,275 @@
+/**
+ * JavaCC template file created by SF JavaCC plugin 1.5.17+ wizard for JavaCC 1.5.0+
+ */options{  JDK_VERSION = "1.5";  static = true;
+  DEBUG_TOKEN_MANAGER = true;
+  DEBUG_PARSER = true;}PARSER_BEGIN(DecafParser)
+import java.io.*;
+
+public class DecafParser{  public static void main(String args []) throws ParseException  {
+    DecafParser parser = null;
+    try    {
+      FileInputStream fis = new FileInputStream(args[0]);
+      parser = new DecafParser(fis);    }
+    catch (IOException e)    {
+      System.err.println("Could not open file!");    }
+	catch (IndexOutOfBoundsException e)	{		System.err.println("Please specify a file!");
+	}
+
+	try	{
+	  DecafParser.program();
+	  System.out.println("Yay!");
+	}	catch (Exception e)
+	{
+	    System.out.println("Oops. Exception.");
+	    System.out.println(e.getMessage());
+	    DecafParser.ReInit(System.in);
+    }
+    catch (Error e)
+    {
+	    System.out.println("Oops. Error.");
+	    System.out.println(e.getMessage());
+    }  }}PARSER_END(DecafParser)
+/*
+ * Whitespaces
+ */
+SKIP :{  " "| "\r"| "\t"| "\n"}
+
+/*
+ * Line comments
+ */
+SKIP :
+{
+	<
+	  	"//"
+	  	([
+			"a"-"z", "A"-"Z", "0"-"9", "_",
+			".", ",", ";", ":", "!", "?",
+			"(", ")", "-", "+", "*", "/", "=", "<", ">",
+			" "
+		])*
+	    ("\n" | "\r" | "\r\n")
+	>
+}
+/*
+ * Keywords
+ */
+TOKEN :
+{
+  < BOOLEAN: "boolean" >
+| < BREAK: "break" >
+| < CALLOUT: "callout" >
+| < CLASS: "class" >
+| < CONTINUE: "continue" >
+| < ELSE: "else" >
+| < EXTENDS: "extends" >
+| < FALSE: "false" >
+| < FOR: "for" >
+| < IF: "if" >
+| < INT: "int" >
+| < NEW: "new" >
+| < NULL: "null" >
+| < PROGRAM: "Program" >
+| < RETURN: "return" >
+| < THIS: "this" >
+| < TRUE: "true" >
+| < VOID: "void" >
+| < WHILE: "while" >
+}
+
+/*
+ * SYNTAX MARKERS
+ */
+TOKEN:
+{
+  < LPAREN: "(" >
+| < RPAREN: ")" >
+| < LBRACK: "[" >
+| < RBRACK: "]" >
+| < LBRACE: "{" >
+| < RBRACE: "}" >
+| < COMMA: "," >
+| < SEMICOLON: ";" >
+}
+
+/*
+ * Operators
+ */
+TOKEN:
+{
+  < UNARY_OP: "-" | "!" >
+| < BIN_OP: < ARITH_OP > | < REL_OP > | < EQ_OP > | < COND_OP > >
+| < ARITH_OP: "+" | "-" | "*" | "/" | "%" >
+| < REL_OP: "<" | ">" | "<=" | "=>" >
+| < EQ_OP: "==" | "!=" >
+| < COND_OP: "&&" | "||" >
+| < ASSIGN: "=" >
+| < ASSIGN_OP: "=" | "+=" | "-=" >
+}
+
+/*
+ * Identifier
+ */
+TOKEN:
+{
+  < ID: < ALPHA > (< ALPHA_NUM >)* >
+}
+
+/*
+ * Literals
+ */
+TOKEN:
+{
+  < CHAR: (["a"-"z", "A"-"Z", "_", "0"-"9"] // missing some stuff
+		| "\\t" | "\\n"
+		| "\\\\" | "\\\"" | "\\'") >  
+| < ALPHA_NUM: < ALPHA > | < DIGIT > >
+| < ALPHA: ["a"-"z","A"-"Z","_"] >
+| < DIGIT: ["0"-"9"] >
+| < HEX_DIGIT: ["0"-"9", "a"-"f", "A"-"F"] >
+| < DECIMAL_LITERAL: (< DIGIT >)+ >
+| < HEX_LITERAL: "0x" (< HEX_DIGIT >)+ >
+| < BOOL_LITERAL: "true" | "false" >
+| < CHAR_LITERAL: "'" < CHAR > "'" >
+| < STRING_LITERAL: "\"" (< CHAR >)* "\"" >
+}
+
+// ------------ PARSER ------------
+
+void program():
+{
+}
+{
+  < CLASS >
+  < PROGRAM >
+  < LBRACE >
+  (LOOKAHEAD(3) fieldDecl())*
+  (methodDecl())*
+  < RBRACE >
+  <EOF>
+}
+
+void fieldDeclVar():
+{}{
+  < ID >
+  (
+    < LBRACK >
+    intLiteral()
+    < RBRACK >  )?}
+
+void fieldDecl():
+{
+}
+{
+  type()
+   fieldDeclVar()
+  (
+    < COMMA >
+     fieldDeclVar()
+  )*
+   <SEMICOLON>
+}
+
+void methodDeclVar():
+{
+}
+{	type() < ID >
+}
+
+void methodDecl():
+{}{
+  (type() | < VOID >)
+  < ID >
+  < LPAREN >
+  (
+    methodDeclVar()
+    (
+      < COMMA >
+      methodDeclVar()    )  )?
+  < RPAREN >
+  block()}
+
+void block():
+{}{
+  < LBRACE >
+  (varDecl())*
+  (statement())*
+  < RBRACE >}
+
+void varDecl():
+{}
+{
+  type()
+  < ID >
+  (< COMMA > < ID >)*
+  < SEMICOLON >
+}
+
+void type():
+{}
+{	< INT > | < BOOLEAN >
+}
+
+void ifStatement():
+{}{
+  < IF > < LPAREN > expr() < RPAREN > block() (< ELSE > block())?}
+
+void forStatement():
+{}{
+  < FOR > < ASSIGN > expr() < COMMA > expr() block()}
+
+void statement():
+{}{
+  LOOKAHEAD(3)
+  location() < ASSIGN_OP > expr() < SEMICOLON >
+| methodCall() < SEMICOLON >
+| ifStatement()
+| forStatement()
+| < RETURN > (expr())? < SEMICOLON >
+| < BREAK > <SEMICOLON >
+| < CONTINUE > < SEMICOLON >
+| block()}
+
+void location():
+{
+}
+{
+  < ID > (< LBRACK > expr() < RBRACK >)?
+}
+
+void methodCall():
+{}{
+  methodName() < LPAREN > (expr() (< COMMA > expr())*)? < RPAREN >
+| < CALLOUT > < LPAREN > < STRING_LITERAL > (< COMMA > calloutArg())* < RPAREN > 
+}
+
+void methodName():
+{}{
+  < ID >}
+
+void expr():
+{}{
+  expr1() (LOOKAHEAD(3) < BIN_OP > expr1())?}
+
+void expr1():
+{}{
+  LOOKAHEAD(2)
+  location()
+| methodCall()
+| literal()
+| < UNARY_OP > expr()
+| < LPAREN > expr() < RPAREN >}
+
+void calloutArg():
+{}{
+  expr() | < STRING_LITERAL >}
+
+void literal():
+{}{
+  intLiteral() | < CHAR_LITERAL > | < BOOL_LITERAL >}
+
+void intLiteral():
+{
+}
+{
+  < DECIMAL_LITERAL > | < HEX_LITERAL >
+}

@@ -1,0 +1,260 @@
+/* Cpts 452 - Decaf Parser
+ *
+ * Comments: Adapted from Peter Alexander's code which he 
+ *  adapted from Appel's MiniJava Parser
+ *  templates.  Run JavaCC on this source, compile
+ *  Main.java and execute main.  
+ *      javacc DecafParser.jj 
+ *      javac Main.java
+ *      java Main <tests/QuickSort.java
+ *  Note that the parser reads from standard input.  
+ */
+
+options {
+  JAVA_UNICODE_ESCAPE = false;
+  DEBUG_TOKEN_MANAGER = false;
+  // Set the following to false to turn off token printing
+  DEBUG_PARSER = true; 
+  // You may modify the lookahead as needed, perhaps it should be zero?
+  LOOKAHEAD = 2;
+  FORCE_LA_CHECK = false;
+}
+
+PARSER_BEGIN(DecafParser)
+  public class DecafParser {}
+PARSER_END(DecafParser)
+
+// Insert a specification of a lexical analysis here. 
+// Define white space
+SKIP :
+{
+  <"//" (["a"-"z","A"-"Z","0"-"9",".",",","!","@","#","$","%","^","&","*","(",")","_","-","+","=",";",":","\""," "])* ("\n" | "\r" | "\r\n") >
+| " "
+| "\t"
+| "\n"
+| "\r"
+| "\f"
+}
+
+// Define a multi-line comment
+SKIP :{ "/*" : MULTI_COMMENT}
+< MULTI_COMMENT > SKIP : { < ~[] > }
+< MULTI_COMMENT > SPECIAL_TOKEN : { <MULTI_COMMENT_END: "*/" > }
+
+// Define keyword tokens
+TOKEN :
+{
+//  < KEYWORD: <BOOLEAN>|<CALLOUT>|<CLASS>|<ELSE>|<EXTENDS>|<FALSE>|<IF>|<INT>|<NEW>|<NULL>|<RETURN>|<THIS>|<TRUE>|<VOID>|<WHILE>|<PROGRAM> >
+  < BOOLEAN: "boolean" >
+| < CALLOUT: "callout" >
+| < CLASS: "class" >
+| < ELSE: "else" >
+| < EXTENDS: "extends" >
+| < FALSE: "false" >
+| < IF: "if" >
+| < INT: "int" >
+| < NEW: "new" >
+| < NULL: "null" >
+| < RETURN: "return" >
+| < THIS: "this" >
+| < TRUE: "true" >
+| < VOID: "void" >
+| < WHILE: "while" >
+| < PROGRAM: "Program" >
+}
+
+// Define identifiers and literals
+TOKEN:
+{
+  < IDENTIFIER: <LETTER> (<LETTER>|<DIGIT>)* >
+| < LITERAL: (<LETTER>|<DIGIT>|<HEXDIGIT>)+ >
+| < LETTER: ["a"-"z","A"-"Z","_"] >
+| < DIGIT: ["0"-"9"] >
+| < HEXDIGIT: ["0"-"9"]["0"-"9","a"-"f","A"-"F"] >
+| < FORMAT: ["\t", "\r", "\n", " " ] >	// aren't these supposed to be skipped?
+}
+
+// Define enclosing tokens
+TOKEN:
+{
+//  < ENCLOSER: <LPAREN>|<RPAREN>|<LBRACKET>|<RBRACKET>|<LBRACE>|<RBRACE>|<SEMICOLON>|<QUOTE>|<DBLQUOTE> >
+  < LPAREN: "(" >
+| < RPAREN: ")" >
+| < LBRACKET: "[" >
+| < RBRACKET: "]" >
+| < LBRACE: "{" >
+| < RBRACE: "}" >
+| < SEMICOLON: ";" >
+| < QUOTE:  "'" >
+| < DBLQUOTE: "\"" >
+}
+
+// Define operator tokens
+TOKEN:
+{
+//  < OPERATOR: <BANG>|<PLUS>|<MINUS>|<TIMES>|<DIVIDE>|<LESS>|<GREATER>|<LESSEQUAL>|<GREATEREQUAL>|<EQUAL>|<NOTEQUAL>|<AND>|<OR>|<ASSIGN>|<COMMA>|<DOT> >
+  < BANG: "!" >
+| < PLUS: "+" >
+| < MINUS: "-" >
+| < TIMES: "*" >
+| < DIVIDE: "/" >
+| < LESS: "<" >
+| < GREATER: ">" >
+| < LESSEQUAL: "<=" >
+| < GREATEREQUAL: ">=" >
+| < EQUAL: "==" >
+| < NOTEQUAL: "!=" >
+| < AND: "&&" >
+| < OR: "||" >
+| < ASSIGN: "=" >
+| < COMMA: "," >
+| < DOT: "." >
+}
+
+// Insert a specification of the parser here.
+
+// The goal is a simple goal to test the generated parser.
+// An example of the parse rule for the goal.
+void Goal() :
+{}
+{
+  <CLASS> <PROGRAM> <LBRACE> (LOOKAHEAD(3) field_decl())* (method_decl())* <RBRACE> <EOF>
+} 
+
+void field_decl() :
+{}
+{	type() id() (<LBRACKET> int_literal() <RBRACKET>(<COMMA><LBRACKET> int_literal() <RBRACKET>)*)? <SEMICOLON>	}
+
+void method_decl() :
+{}
+{	(type() | "void")  id() <LPAREN> (type() id() (<COMMA>type() id())*)? <RPAREN> block()	}
+
+void block() :
+{}
+{	<LBRACE> (var_decl())* (statement())* <RBRACE> (<SEMICOLON>)?	} 
+
+void var_decl() :
+{}
+{	type() id()(<COMMA>id())* <SEMICOLON>	}
+
+void type() :
+{}
+{	<INT> | <BOOLEAN>	}
+
+void statement() :
+{}
+{	LOOKAHEAD(3)
+	location() <EQUAL> expr() <SEMICOLON>
+|	method_call() <SEMICOLON>
+|	<IF> <LPAREN> expr() <RPAREN> block() (<ELSE> (LOOKAHEAD(3) statement() | block()))?
+|	<WHILE> <LPAREN> expr() <RPAREN> block()
+|	<RETURN> (LOOKAHEAD(2)expr())? (<SEMICOLON>)?
+|	block()
+}
+
+void method_call() :
+{}
+{	method_name() <LPAREN> expr()(<COMMA>expr())* <RPAREN>
+|	<CALLOUT> <LPAREN> string_literal() (<LPAREN>(callout_arg())*<RPAREN>)? <RPAREN>
+}
+
+void method_name() :
+{}
+{	id()	}
+
+void location() :
+{}
+{	LOOKAHEAD( 3 )
+	id()
+|	id() <LBRACKET> expr() <RBRACKET>
+}
+
+void expr() :
+{}
+{	LOOKAHEAD(3)
+	expr1() bin_op() expr1()
+|	expr1()
+}
+
+void expr1() :
+{}
+{	LOOKAHEAD(2)
+	location()
+|	method_call()
+|	literal()
+|	<BANG> expr()
+|	<LPAREN> expr() <RPAREN>
+}
+
+void callout_arg() :
+{}
+{	expr() | string_literal()	}
+
+void bin_op() :
+{}
+{	arith_op() | rel_op() | eq_op() | cond_op()	}
+
+void arith_op() :
+{}
+{	<PLUS> | <MINUS> | <TIMES> | <DIVIDE>	}
+
+void rel_op() :
+{}
+{	<LESS> | <GREATER> | <LESSEQUAL> | <GREATEREQUAL>	}
+
+void eq_op() :
+{}
+{	<EQUAL> | <NOTEQUAL>	}
+
+void cond_op() :
+{}
+{	<AND> | <OR>	}
+
+void literal() :
+{}
+{	int_literal() | char_literal() | bool_literal() | string_literal()	}
+
+void id() :
+{}
+{	<IDENTIFIER>	}
+//{	alpha() (LOOKAHEAD(2) alpha_num())*	}
+
+void alpha_num() :
+{}
+{	alpha() | digit()	}
+
+void alpha() :
+{}
+{	<LETTER>	}
+
+void digit() :
+{}
+{	<DIGIT>	}
+
+void hexdigit() :
+{}
+{	<HEXDIGIT>	}
+
+void int_literal() :
+{}
+{	decimal_literal() | hex_literal()	}
+
+void decimal_literal() :
+{}
+{	(<MINUS>)? digit() (LOOKAHEAD(2) digit())*	}
+
+void hex_literal() :
+{}
+{	"0x" hexdigit() (hexdigit())*	}
+
+void bool_literal() :
+{}
+{	<TRUE> | <FALSE>	}
+
+void char_literal() :
+{}
+{	<QUOTE> <LETTER> <QUOTE>	}
+
+void string_literal() :
+{}
+{	<DBLQUOTE> (<LETTER>|<DIGIT>|<FORMAT>)* <DBLQUOTE>	}

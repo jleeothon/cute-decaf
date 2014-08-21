@@ -1,0 +1,2 @@
+jjtree src/Decaf.jjt && javacc Decaf.jj && javac ./*.java
+
